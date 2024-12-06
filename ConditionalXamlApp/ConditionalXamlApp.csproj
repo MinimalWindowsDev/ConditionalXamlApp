@@ -22,7 +22,7 @@
 		<DebugType>full</DebugType>
 		<Optimize>false</Optimize>
 		<OutputPath>bin\Debug\</OutputPath>
-		<DefineConstants>DEBUG;TRACE;fix_issue_001</DefineConstants>
+		<DefineConstants>DEBUG;TRACE</DefineConstants>
 		<ErrorReport>prompt</ErrorReport>
 		<WarningLevel>4</WarningLevel>
 	</PropertyGroup>
@@ -36,6 +36,10 @@
 		<WarningLevel>4</WarningLevel>
 	</PropertyGroup>
 	<!-- Added -->
+
+	<PropertyGroup>
+		<DefineConstants>$(Configuration);fix_issue_001</DefineConstants>
+	</PropertyGroup>
 
 	<PropertyGroup>
 		<!-- Path to the XSLT stylesheet -->

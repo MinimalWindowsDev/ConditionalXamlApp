@@ -17,8 +17,8 @@ goto process_args
 
 REM If CLEAN is specified, perform cleaning
 if %CLEAN%==1 (
-    echo Cleaning bin and obj directories...
-    for /d /r %%d in (bin,obj) do (
+    echo Cleaning bin and obj and PreprocessedXaml directories...
+    for /d /r %%d in (bin,obj,PreprocessedXaml) do (
         if exist "%%d" (
             echo Deleting directory: "%%d"
             rd /s /q "%%d"

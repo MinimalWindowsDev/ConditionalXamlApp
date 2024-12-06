@@ -19,77 +19,84 @@ namespace CustomTasks
 
         public string Parameters { get; set; }
 
+        private void LogDebugInfo(string message)
+        {
+            Log.LogMessage(MessageImportance.High, $"[DEBUG] {message}");
+        }
+
         public override bool Execute()
         {
             try
             {
-                // Check for null or empty arrays
-                if (InputFiles == null || OutputFiles == null)
-                {
-                    Log.LogError("InputFiles and OutputFiles cannot be null.");
-                    return false;
-                }
+                LogDebugInfo($"Starting XSLT transformation");
+                LogDebugInfo($"XSLT file: {XsltFile}");
+                LogDebugInfo($"Raw parameters: {Parameters}");
 
-                if (InputFiles.Length != OutputFiles.Length)
+                var settings = new XmlReaderSettings
                 {
-                    Log.LogError("InputFiles and OutputFiles must have the same number of items.");
-                    return false;
-                }
+                    DtdProcessing = DtdProcessing.Parse,
+                    IgnoreWhitespace = false
+                };
 
-                if (!System.IO.File.Exists(XsltFile))
+                var xslt = new XslCompiledTransform(true);
+                using (var reader = XmlReader.Create(XsltFile, settings))
                 {
-                    Log.LogError($"XSLT file '{XsltFile}' does not exist.");
-                    return false;
+                    xslt.Load(reader);
                 }
-
-                var xslt = new XslCompiledTransform();
-                xslt.Load(XsltFile);
 
                 for (int i = 0; i < InputFiles.Length; i++)
                 {
                     var inputFile = InputFiles[i].ItemSpec;
                     var outputFile = OutputFiles[i].ItemSpec;
-
-                    if (!System.IO.File.Exists(inputFile))
-                    {
-                        Log.LogError($"Input file '{inputFile}' does not exist.");
-                        continue;
-                    }
+                    LogDebugInfo($"Processing {inputFile} -> {outputFile}");
 
                     var xsltArgs = new XsltArgumentList();
                     if (!string.IsNullOrEmpty(Parameters))
                     {
                         foreach (var param in Parameters.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
                         {
-                            var kvp = param.Split('=');
+                            var kvp = param.Split(new[] { '=' }, 2);
                             if (kvp.Length == 2)
                             {
-                                xsltArgs.AddParam(kvp[0], "", kvp[1]);
-                            }
-                            else
-                            {
-                                Log.LogWarning($"Invalid parameter format: '{param}'. Expected 'name=value'.");
+                                string paramName = kvp[0].Trim();
+                                string paramValue = kvp[1].Trim();
+                                LogDebugInfo($"Parameter: {paramName} = {paramValue}");
+                                xsltArgs.AddParam(paramName, "", paramValue);
                             }
                         }
                     }
 
-
-                    // Ensure the directory for the output file exists
                     var outputDir = System.IO.Path.GetDirectoryName(outputFile);
-                    if (!System.IO.Directory.Exists(outputDir))
+                    if (!string.IsNullOrEmpty(outputDir) && !System.IO.Directory.Exists(outputDir))
                     {
                         System.IO.Directory.CreateDirectory(outputDir);
                     }
 
-                    Log.LogMessage($"Transforming '{inputFile}' to '{outputFile}' using XSLT '{XsltFile}'.");
-
-                    using (var writer = XmlWriter.Create(outputFile))
+                    using (var reader = XmlReader.Create(inputFile, settings))
                     {
-                        xslt.Transform(inputFile, xsltArgs, writer);
+                        var writerSettings = new XmlWriterSettings
+                        {
+                            Indent = true,
+                            IndentChars = "    ",
+                            NewLineChars = "\n",
+                            NewLineHandling = NewLineHandling.Replace
+                        };
+
+                        using (var writer = XmlWriter.Create(outputFile, writerSettings))
+                        {
+                            xslt.Transform(reader, xsltArgs, writer);
+                        }
+                    }
+
+                    LogDebugInfo($"Transformation completed for {inputFile}");
+                    if (System.IO.File.Exists(outputFile))
+                    {
+                        string content = System.IO.File.ReadAllText(outputFile);
+                        LogDebugInfo($"Transformed content:\n{content}");
                     }
                 }
 
-                return !Log.HasLoggedErrors;
+                return true;
             }
             catch (Exception ex)
             {
